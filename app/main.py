@@ -207,6 +207,46 @@ def download(video_id: str) -> Response:
     )
 
 
+@app.get("/api/download-batch")
+def download_batch(ids: str) -> Response:
+    """Zip up multiple transcripts. `ids` is comma-separated video_ids."""
+    import io
+    import zipfile
+
+    wanted = [i.strip() for i in ids.split(",") if i.strip()]
+    if not wanted:
+        raise HTTPException(status_code=400, detail="No ids given.")
+
+    buf = io.BytesIO()
+    found = 0
+    used_names: set[str] = set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for vid in wanted:
+            row = db.get(vid)
+            if not row:
+                continue
+            slug = "".join(
+                c for c in (row["title"] or vid) if c.isalnum() or c in "-_ "
+            ).strip().replace(" ", "-").lower() or vid
+            name = f"{slug[:60]}--{vid}.md"
+            if name in used_names:  # same title twice; vid suffix makes it rare
+                name = f"{vid}.md"
+            used_names.add(name)
+            zf.writestr(name, row["markdown"])
+            found += 1
+
+    if not found:
+        raise HTTPException(status_code=404, detail="None of those transcripts exist.")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": 'attachment; filename="yt2md-transcripts.zip"'
+        },
+    )
+
+
 @app.delete("/api/transcript/{video_id}")
 def remove(video_id: str) -> dict:
     ok = db.delete(video_id)

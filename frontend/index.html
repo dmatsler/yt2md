@@ -28,9 +28,9 @@
     font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   a { color: var(--green-600); }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 36px 20px 80px; }
 
-  header.masthead { margin-bottom: 28px; }
+  header.masthead { margin-bottom: 24px; }
   .brand {
     font-size: 30px; font-weight: 700; letter-spacing: -.02em;
     display: inline-flex; align-items: baseline; gap: 2px;
@@ -38,18 +38,27 @@
   .brand .arrow { color: var(--green); font-weight: 800; }
   .tagline { color: var(--muted); margin-top: 4px; font-size: 15px; }
 
+  /* Two-column workspace: inputs left, activity right */
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  @media (max-width: 920px) { .workspace { grid-template-columns: 1fr; } }
+
   .card {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     padding: 20px;
-    margin-bottom: 20px;
   }
 
   .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
   input[type=text] {
-    flex: 1 1 320px;
+    flex: 1 1 200px;
     padding: 12px 14px;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -78,7 +87,7 @@
 
   .source-head { display: flex; justify-content: space-between; align-items: baseline;
     gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
-  .source-head h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .source-head h2 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
   .count { color: var(--muted); font-size: 14px; }
 
   .toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -101,7 +110,9 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--green-600); font-size: 18px;
   }
-  @media (max-width: 560px) { .thumb, .thumb-ph { width: 64px; height: 36px; font-size: 14px; } }
+  /* Video list inside results can grow: cap + scroll */
+  .scroll-list { max-height: 420px; overflow-y: auto; }
+
   .vtitle { flex: 1 1 auto; min-width: 0; }
   .vtitle .name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vtitle .meta { font-size: 13px; color: var(--muted); }
@@ -110,8 +121,6 @@
   .badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
   .badge-done { background: var(--green-tint); color: var(--green-600); }
   .badge-new  { background: #eef1f0; color: var(--muted); }
-  .badge-run  { background: #fbf1de; color: var(--amber); }
-  .badge-err  { background: #f6e4e0; color: var(--danger); }
 
   .row-actions { display: flex; gap: 6px; align-items: center; }
 
@@ -130,7 +139,50 @@
   .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
   .banner { padding: 12px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
   .banner-warn { background: #fbf1de; color: #6b4e15; border: 1px solid #ecd9ad; }
-  .banner-err { background: #f6e4e0; color: var(--danger); border: 1px solid #e6c3ba; }
+
+  .placeholder-card {
+    border: 1px dashed var(--line); border-radius: var(--radius);
+    padding: 34px 20px; text-align: center; color: var(--muted); font-size: 14px;
+    background: rgba(255,255,255,.55);
+  }
+
+  /* ---- Library: full-width band, searchable, scrollable grid ---- */
+  .library { margin-top: 24px; }
+  .library-head { display: flex; justify-content: space-between; align-items: center;
+    gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .library-head .section-title { margin: 0; }
+  .lib-search { flex: 0 1 340px; }
+  .lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 14px;
+    max-height: 560px;
+    overflow-y: auto;
+    padding: 2px; /* keep card shadows from clipping */
+  }
+  .lib-card {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    background: #fbfdfc; overflow: hidden; display: flex; flex-direction: column;
+    position: relative;
+  }
+  .lib-pick {
+    position: absolute; top: 8px; left: 8px; z-index: 2;
+    width: 18px; height: 18px; accent-color: var(--green);
+    background: #fff; border-radius: 4px; box-shadow: 0 0 0 3px rgba(255,255,255,.85);
+  }
+  .bulk-bar { display: none; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .bulk-bar.show { display: flex; }
+  .lib-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover;
+    background: var(--green-tint); display: block; }
+  .lib-thumb-ph { width: 100%; aspect-ratio: 16/9; background: var(--green-tint);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green-600); font-size: 30px; }
+  .lib-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .lib-title { font-size: 14px; font-weight: 600; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .lib-meta { font-size: 12px; color: var(--muted); }
+  .lib-actions { margin-top: auto; display: flex; gap: 6px; }
 
   /* modal */
   .modal-back { position: fixed; inset: 0; background: rgba(21,36,31,.45);
@@ -157,52 +209,76 @@
 
   <div id="keyWarn" class="banner banner-warn" style="display:none;"></div>
 
-  <div class="card">
-    <div class="input-row">
-      <input id="url" type="text" placeholder="https://www.youtube.com/watch?v=…  or a playlist URL" />
-      <button id="resolveBtn" class="btn-primary">Resolve</button>
+  <div class="workspace">
+    <!-- LEFT: inputs -->
+    <div class="col">
+      <div class="card">
+        <p class="section-title">YouTube link</p>
+        <div class="input-row">
+          <input id="url" type="text" placeholder="Video or playlist URL" />
+          <button id="resolveBtn" class="btn-primary">Resolve</button>
+        </div>
+        <div id="resolveMsg" class="hint" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <p class="section-title">Or upload audio directly</p>
+        <p class="hint" style="margin:0 0 12px;">Fallback for when YouTube blocks server downloads, or for any other audio.
+          Any length is fine — files are chunked automatically. Accepts mp3, m4a, wav, webm, mp4 and more.</p>
+        <div class="input-row">
+          <input type="file" id="audioFile" accept=".mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.webm,.mp4,.mkv,.mov"
+                 style="flex:1 1 180px; font-size:14px; padding:9px; border:1px dashed var(--line); border-radius:8px; background:#fbfdfc;" />
+          <input type="text" id="audioTitle" placeholder="Title (optional)" />
+          <button id="uploadBtn" class="btn-primary">Upload &amp; transcribe</button>
+        </div>
+        <div id="uploadMsg" class="hint" style="margin-top:10px;"></div>
+      </div>
     </div>
-    <div id="resolveMsg" class="hint" style="margin-top:10px;"></div>
+
+    <!-- RIGHT: activity -->
+    <div class="col">
+      <div id="workHint" class="placeholder-card">
+        Resolve a link or upload audio — results and progress appear here.
+      </div>
+
+      <div id="resultsCard" class="card" style="display:none;">
+        <div class="source-head">
+          <h2 id="sourceTitle"></h2>
+          <span id="sourceCount" class="count"></span>
+        </div>
+        <div class="toolbar">
+          <button id="selectAllBtn" class="btn-ghost btn-sm" type="button">Select all new</button>
+          <button id="deselectAllBtn" class="btn-ghost btn-sm" type="button">Deselect all</button>
+          <label><input type="checkbox" id="forceToggle" /> Allow re-transcribing done videos</label>
+        </div>
+        <ul id="videoList" class="list scroll-list"></ul>
+        <div class="action-bar">
+          <span id="selectionHint" class="hint"></span>
+          <button id="transcribeBtn" class="btn-primary" disabled>Transcribe selected</button>
+        </div>
+      </div>
+
+      <div id="progressCard" class="card" style="display:none;">
+        <p class="section-title">Progress</p>
+        <ul id="progressList" class="list scroll-list"></ul>
+      </div>
+    </div>
   </div>
 
-  <div class="card">
-    <p class="section-title">Or upload audio directly</p>
-    <p class="hint" style="margin:0 0 12px;">Fallback for when YouTube blocks server downloads, or for any other audio.
-      Any length is fine — files are chunked automatically. Accepts mp3, m4a, wav, webm, mp4 and more.</p>
-    <div class="input-row">
-      <input type="file" id="audioFile" accept=".mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.webm,.mp4,.mkv,.mov"
-             style="flex:1 1 220px; font-size:14px; padding:9px; border:1px dashed var(--line); border-radius:8px; background:#fbfdfc;" />
-      <input type="text" id="audioTitle" placeholder="Title (optional — defaults to filename)" style="flex:1 1 220px;" />
-      <button id="uploadBtn" class="btn-primary">Upload &amp; transcribe</button>
+  <!-- FULL-WIDTH: the library shelf -->
+  <div class="card library">
+    <div class="library-head">
+      <p class="section-title">Library</p>
+      <input id="libSearch" class="lib-search" type="text" placeholder="Search titles and channels…" />
     </div>
-    <div id="uploadMsg" class="hint" style="margin-top:10px;"></div>
-  </div>
-
-  <div id="resultsCard" class="card" style="display:none;">
-    <div class="source-head">
-      <h2 id="sourceTitle"></h2>
-      <span id="sourceCount" class="count"></span>
-    </div>
-    <div class="toolbar">
-      <label><input type="checkbox" id="selectAll" /> Select all new</label>
-      <label><input type="checkbox" id="forceToggle" /> Allow re-transcribing done videos</label>
-    </div>
-    <ul id="videoList" class="list"></ul>
-    <div class="action-bar">
-      <span id="selectionHint" class="hint"></span>
-      <button id="transcribeBtn" class="btn-primary" disabled>Transcribe selected</button>
-    </div>
-  </div>
-
-  <div id="progressCard" class="card" style="display:none;">
-    <p class="section-title">Progress</p>
-    <ul id="progressList" class="list"></ul>
-  </div>
-
-  <div class="card">
-    <p class="section-title">Library</p>
-    <ul id="libraryList" class="list"></ul>
+    <div id="libraryGrid" class="lib-grid"></div>
     <p id="libraryEmpty" class="empty">Nothing transcribed yet.</p>
+    <p id="libraryNoMatch" class="empty" style="display:none;">No matches for that search.</p>
+    <div id="bulkBar" class="bulk-bar">
+      <span id="bulkCount" class="hint"></span>
+      <button id="bulkDownloadBtn" class="btn-primary btn-sm" type="button">Download selected (.zip)</button>
+      <button id="bulkClearBtn" class="btn-ghost btn-sm" type="button">Clear selection</button>
+    </div>
   </div>
 </div>
 
@@ -219,6 +295,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let currentEntries = [];
+let libraryItems = [];
 
 function fmtDur(sec) {
   if (!sec) return "";
@@ -226,6 +303,23 @@ function fmtDur(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
            : `${m}:${String(s).padStart(2,"0")}`;
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function thumbHtml(src) {
+  if (!src) return `<div class="thumb-ph" aria-hidden="true">&#9835;</div>`;
+  return `<img class="thumb" src="${escapeHtml(src)}" alt="" loading="lazy"
+    onerror="this.outerHTML='<div class=&quot;thumb-ph&quot;>&#9835;</div>'" />`;
+}
+
+function updateWorkHint() {
+  const busy = $("resultsCard").style.display !== "none" ||
+               $("progressCard").style.display !== "none";
+  $("workHint").style.display = busy ? "none" : "block";
 }
 
 async function checkHealth() {
@@ -257,18 +351,10 @@ async function resolve() {
     renderResults(d);
     $("resolveMsg").textContent = "";
   } catch (e) {
-    $("resolveMsg").innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+    $("resolveMsg").innerHTML = `<span style="color:var(--danger)">${escapeHtml(e.message)}</span>`;
   } finally {
     $("resolveBtn").disabled = false;
   }
-}
-
-function thumbHtml(src) {
-  // Placeholder (music glyph) for uploads or missing art; onerror covers
-  // the rare video whose thumbnail 404s.
-  if (!src) return `<div class="thumb-ph" aria-hidden="true">&#9835;</div>`;
-  return `<img class="thumb" src="${escapeHtml(src)}" alt="" loading="lazy"
-    onerror="this.outerHTML='<div class=&quot;thumb-ph&quot;>&#9835;</div>'" />`;
 }
 
 function renderResults(d) {
@@ -277,13 +363,18 @@ function renderResults(d) {
   const newCount = d.entries.filter(e => !e.already_done).length;
   $("sourceCount").textContent = `${n} video${n===1?"":"s"} · ${newCount} new`;
   $("resultsCard").style.display = "block";
+  updateWorkHint();
   const list = $("videoList");
   list.innerHTML = "";
+  // Opt-in selection: nothing pre-checked on playlists. If there's exactly
+  // one new video (single-URL case), pre-check it — intent is obvious.
+  const soloNew = newCount === 1;
   d.entries.forEach((e, i) => {
     const li = document.createElement("li");
     const done = e.already_done;
+    const checked = soloNew && !done ? "checked" : "";
     li.innerHTML = `
-      <input type="checkbox" class="pick" data-i="${i}" ${done ? "disabled" : "checked"} />
+      <input type="checkbox" class="pick" data-i="${i}" ${done ? "disabled" : checked} />
       ${thumbHtml(e.thumbnail)}
       <div class="vtitle">
         <span class="name">${escapeHtml(e.title)}</span>
@@ -304,7 +395,7 @@ function renderResults(d) {
 function bindPicks() {
   document.querySelectorAll(".pick").forEach(cb =>
     cb.addEventListener("change", updateSelectionHint));
-  document.querySelectorAll("[data-view]").forEach(b =>
+  document.querySelectorAll("#videoList [data-view]").forEach(b =>
     b.addEventListener("click", () => viewTranscript(b.dataset.view)));
 }
 
@@ -320,10 +411,15 @@ function updateSelectionHint() {
   $("transcribeBtn").disabled = n === 0;
 }
 
-$("selectAll").addEventListener("change", (e) => {
+$("selectAllBtn").addEventListener("click", () => {
   document.querySelectorAll(".pick").forEach(cb => {
-    if (!cb.disabled) cb.checked = e.target.checked;
+    if (!cb.disabled) cb.checked = true;
   });
+  updateSelectionHint();
+});
+
+$("deselectAllBtn").addEventListener("click", () => {
+  document.querySelectorAll(".pick").forEach(cb => { cb.checked = false; });
   updateSelectionHint();
 });
 
@@ -359,12 +455,6 @@ async function startTranscribe() {
   }
 }
 
-const STAGE_LABEL = {
-  queued: "Queued", downloading: "Downloading audio", chunking: "Preparing audio",
-  transcribing: "Transcribing", cleaning: "Cleaning up",
-  saving: "Saving", done: "Done", skipped: "Already done", error: "Error",
-};
-
 async function uploadAudio() {
   const input = $("audioFile");
   if (!input.files || !input.files.length) {
@@ -389,11 +479,17 @@ async function uploadAudio() {
       pollJob(d.job_id);
     }
   } catch (e) {
-    $("uploadMsg").innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+    $("uploadMsg").innerHTML = `<span style="color:var(--danger)">${escapeHtml(e.message)}</span>`;
   } finally {
     $("uploadBtn").disabled = false;
   }
 }
+
+const STAGE_LABEL = {
+  queued: "Queued", downloading: "Downloading audio", chunking: "Preparing audio",
+  transcribing: "Transcribing", cleaning: "Cleaning up",
+  saving: "Saving", done: "Done", skipped: "Already done", error: "Error",
+};
 function dotClass(status) {
   if (status === "done") return "done";
   if (status === "skipped") return "skipped";
@@ -404,6 +500,7 @@ function dotClass(status) {
 
 async function pollJob(jobId) {
   $("progressCard").style.display = "block";
+  updateWorkHint();
   const list = $("progressList");
   const tick = async () => {
     const r = await fetch(`/api/jobs/${jobId}`);
@@ -421,7 +518,6 @@ async function pollJob(jobId) {
     });
     if (d.state === "finished") {
       loadLibrary();
-      // refresh the resolve view so freshly-done items flip to "transcribed"
       if ($("url").value.trim()) refreshResolveStatuses();
       $("transcribeBtn").disabled = selectedIndexes().length === 0;
       return;
@@ -442,31 +538,77 @@ async function refreshResolveStatuses() {
   } catch (_) {}
 }
 
+/* ---------------- Library ---------------- */
+const libSelected = new Set();
+
 async function loadLibrary() {
   const r = await fetch("/api/library");
   const d = await r.json();
-  const list = $("libraryList");
-  list.innerHTML = "";
-  if (!d.transcripts.length) { $("libraryEmpty").style.display = "block"; return; }
-  $("libraryEmpty").style.display = "none";
-  d.transcripts.forEach(t => {
-    const li = document.createElement("li");
-    li.innerHTML = `
-      ${thumbHtml(t.thumbnail)}
-      <div class="vtitle"><span class="name">${escapeHtml(t.title)}</span>
-        <span class="meta">${fmtDur(t.duration)}${t.channel ? " · " + escapeHtml(t.channel) : ""}
-          · ${t.created_at ? t.created_at.slice(0,10) : ""}</span></div>
-      <div class="row-actions">
-        <button class="btn-ghost btn-sm" data-view="${t.video_id}">View</button>
-        <a class="btn-ghost btn-sm" href="/api/download/${t.video_id}">.md</a>
-        <button class="btn-danger btn-sm" data-del="${t.video_id}">Delete</button>
+  libraryItems = d.transcripts || [];
+  // prune selections for items that no longer exist
+  const ids = new Set(libraryItems.map(t => t.video_id));
+  [...libSelected].forEach(id => { if (!ids.has(id)) libSelected.delete(id); });
+  renderLibrary();
+}
+
+function libThumbHtml(src) {
+  if (!src) return `<div class="lib-thumb-ph" aria-hidden="true">&#9835;</div>`;
+  return `<img class="lib-thumb" src="${escapeHtml(src)}" alt="" loading="lazy"
+    onerror="this.outerHTML='<div class=&quot;lib-thumb-ph&quot;>&#9835;</div>'" />`;
+}
+
+function renderLibrary() {
+  const q = $("libSearch").value.trim().toLowerCase();
+  const grid = $("libraryGrid");
+  grid.innerHTML = "";
+
+  const total = libraryItems.length;
+  const shown = q
+    ? libraryItems.filter(t =>
+        (t.title || "").toLowerCase().includes(q) ||
+        (t.channel || "").toLowerCase().includes(q))
+    : libraryItems;
+
+  $("libraryEmpty").style.display = total ? "none" : "block";
+  $("libraryNoMatch").style.display = (total && !shown.length) ? "block" : "none";
+
+  shown.forEach(t => {
+    const card = document.createElement("div");
+    card.className = "lib-card";
+    card.innerHTML = `
+      <input type="checkbox" class="lib-pick" data-id="${t.video_id}"
+        ${libSelected.has(t.video_id) ? "checked" : ""} title="Select for bulk download" />
+      ${libThumbHtml(t.thumbnail)}
+      <div class="lib-body">
+        <div class="lib-title">${escapeHtml(t.title)}</div>
+        <div class="lib-meta">${fmtDur(t.duration)}${t.channel ? " · " + escapeHtml(t.channel) : ""}
+          ${t.created_at ? " · " + t.created_at.slice(0,10) : ""}</div>
+        <div class="lib-actions">
+          <button class="btn-ghost btn-sm" data-view="${t.video_id}">View</button>
+          <a class="btn-ghost btn-sm" href="/api/download/${t.video_id}">.md</a>
+          <button class="btn-danger btn-sm" data-del="${t.video_id}">Delete</button>
+        </div>
       </div>`;
-    list.appendChild(li);
+    grid.appendChild(card);
   });
-  document.querySelectorAll("[data-view]").forEach(b =>
+
+  grid.querySelectorAll("[data-view]").forEach(b =>
     b.addEventListener("click", () => viewTranscript(b.dataset.view)));
-  document.querySelectorAll("[data-del]").forEach(b =>
+  grid.querySelectorAll("[data-del]").forEach(b =>
     b.addEventListener("click", () => delTranscript(b.dataset.del)));
+  grid.querySelectorAll(".lib-pick").forEach(cb =>
+    cb.addEventListener("change", () => {
+      if (cb.checked) libSelected.add(cb.dataset.id);
+      else libSelected.delete(cb.dataset.id);
+      updateBulkBar();
+    }));
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const n = libSelected.size;
+  $("bulkBar").classList.toggle("show", n > 0);
+  $("bulkCount").textContent = n === 1 ? "1 transcript selected" : `${n} transcripts selected`;
 }
 
 async function viewTranscript(id) {
@@ -482,20 +624,26 @@ async function delTranscript(id) {
   if ($("url").value.trim()) refreshResolveStatuses();
 }
 
-function escapeHtml(s) {
-  return (s || "").replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-
 $("resolveBtn").addEventListener("click", resolve);
 $("url").addEventListener("keydown", e => { if (e.key === "Enter") resolve(); });
 $("transcribeBtn").addEventListener("click", startTranscribe);
 $("uploadBtn").addEventListener("click", uploadAudio);
+$("libSearch").addEventListener("input", renderLibrary);
+$("bulkDownloadBtn").addEventListener("click", () => {
+  if (!libSelected.size) return;
+  window.location.href = "/api/download-batch?ids=" +
+    encodeURIComponent([...libSelected].join(","));
+});
+$("bulkClearBtn").addEventListener("click", () => {
+  libSelected.clear();
+  renderLibrary();
+});
 $("modalClose").addEventListener("click", () => $("modalBack").classList.remove("open"));
 $("modalBack").addEventListener("click", e => { if (e.target === $("modalBack")) $("modalBack").classList.remove("open"); });
 
 checkHealth();
 loadLibrary();
+updateWorkHint();
 </script>
 </body>
 </html>

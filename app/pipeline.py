@@ -63,6 +63,7 @@ def process_video(
             duration=entry.duration,
             markdown=markdown,
             file_path=str(file_path),
+            thumbnail=entry.thumbnail,
         )
         status("done")
         return {

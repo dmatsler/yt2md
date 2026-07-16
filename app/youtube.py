@@ -25,6 +25,7 @@ class VideoEntry:
     url: str
     duration: Optional[int] = None
     channel: Optional[str] = None
+    thumbnail: Optional[str] = None
     # When set, this entry came from a direct audio upload: skip yt-dlp and
     # chunk this file instead. The pipeline deletes it after processing.
     local_path: Optional[str] = None
@@ -36,6 +37,7 @@ class VideoEntry:
             "url": self.url,
             "duration": self.duration,
             "channel": self.channel,
+            "thumbnail": self.thumbnail,
         }
 
 
@@ -50,18 +52,39 @@ def _watch_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
+def _thumb_url(video_id: str, given: Optional[str] = None) -> Optional[str]:
+    """Prefer yt-dlp's thumbnail, else derive the standard YouTube URL.
+
+    Uploaded entries (ids prefixed 'up-') have no thumbnail; return None so
+    the UI can show a neutral placeholder instead.
+    """
+    if given:
+        return given
+    if not video_id or video_id.startswith("up-"):
+        return None
+    return f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+
+
+def _ydl_opts(**extra) -> dict:
+    """Base yt-dlp options, with the cookies file injected when configured.
+
+    Cookies let yt-dlp act as a logged-in user, which is the standard fix for
+    'Sign in to confirm you're not a bot' blocks on datacenter IPs.
+    """
+    opts = {"quiet": True, "no_warnings": True}
+    if config.COOKIES_FILE and Path(config.COOKIES_FILE).exists():
+        opts["cookiefile"] = config.COOKIES_FILE
+    opts.update(extra)
+    return opts
+
+
 def resolve(url: str) -> ResolveResult:
     """Return the video(s) behind a URL.
 
     Uses flat extraction so playlists come back fast (no per-video network
     round trips). Works for a single video URL too.
     """
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-        "extract_flat": "in_playlist",
-    }
+    opts = _ydl_opts(skip_download=True, extract_flat="in_playlist")
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
@@ -81,6 +104,7 @@ def resolve(url: str) -> ResolveResult:
                     url=item.get("url") or _watch_url(vid),
                     duration=item.get("duration"),
                     channel=item.get("channel") or item.get("uploader"),
+                    thumbnail=_thumb_url(vid, item.get("thumbnail")),
                 )
             )
         return ResolveResult(
@@ -97,6 +121,7 @@ def resolve(url: str) -> ResolveResult:
         url=info.get("webpage_url") or _watch_url(vid),
         duration=info.get("duration"),
         channel=info.get("channel") or info.get("uploader"),
+        thumbnail=_thumb_url(vid, info.get("thumbnail")),
     )
     return ResolveResult(
         source_title=entry.title, is_playlist=False, entries=[entry]
@@ -105,7 +130,7 @@ def resolve(url: str) -> ResolveResult:
 
 def fetch_metadata(video_url: str) -> VideoEntry:
     """Full (non-flat) metadata for a single video, used at transcribe time."""
-    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    opts = _ydl_opts(skip_download=True)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
     vid = info.get("id")
@@ -115,6 +140,7 @@ def fetch_metadata(video_url: str) -> VideoEntry:
         url=info.get("webpage_url") or _watch_url(vid),
         duration=info.get("duration"),
         channel=info.get("channel") or info.get("uploader"),
+        thumbnail=_thumb_url(vid, info.get("thumbnail")),
     )
 
 
@@ -176,12 +202,7 @@ def download_chunks(video_url: str, workdir: Path) -> list[Path]:
     workdir.mkdir(parents=True, exist_ok=True)
     raw_template = str(workdir / "audio.%(ext)s")
 
-    ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "format": "bestaudio/best",
-        "outtmpl": raw_template,
-    }
+    ydl_opts = _ydl_opts(format="bestaudio/best", outtmpl=raw_template)
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(video_url, download=True)
         raw_path = Path(ydl.prepare_filename(info))

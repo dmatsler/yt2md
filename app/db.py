@@ -34,12 +34,17 @@ def init_db() -> None:
                 url          TEXT NOT NULL,
                 channel      TEXT,
                 duration     INTEGER,
+                thumbnail    TEXT,
                 markdown     TEXT NOT NULL,
                 file_path    TEXT,
                 created_at   TEXT NOT NULL
             )
             """
         )
+        # Migration for databases created before the thumbnail column existed.
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(transcripts)")}
+        if "thumbnail" not in cols:
+            conn.execute("ALTER TABLE transcripts ADD COLUMN thumbnail TEXT")
 
 
 def get(video_id: str) -> Optional[sqlite3.Row]:
@@ -76,24 +81,26 @@ def upsert(
     duration: Optional[int],
     markdown: str,
     file_path: Optional[str],
+    thumbnail: Optional[str] = None,
 ) -> None:
     now = datetime.now(timezone.utc).isoformat()
     with _lock, _connect() as conn:
         conn.execute(
             """
             INSERT INTO transcripts
-                (video_id, title, url, channel, duration, markdown, file_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (video_id, title, url, channel, duration, thumbnail, markdown, file_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(video_id) DO UPDATE SET
                 title=excluded.title,
                 url=excluded.url,
                 channel=excluded.channel,
                 duration=excluded.duration,
+                thumbnail=excluded.thumbnail,
                 markdown=excluded.markdown,
                 file_path=excluded.file_path,
                 created_at=excluded.created_at
             """,
-            (video_id, title, url, channel, duration, markdown, file_path, now),
+            (video_id, title, url, channel, duration, thumbnail, markdown, file_path, now),
         )
 
 
@@ -102,7 +109,7 @@ def list_all() -> list[dict]:
     with _lock, _connect() as conn:
         cur = conn.execute(
             """
-            SELECT video_id, title, url, channel, duration, created_at
+            SELECT video_id, title, url, channel, duration, thumbnail, created_at
             FROM transcripts ORDER BY created_at DESC
             """
         )

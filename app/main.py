@@ -45,6 +45,7 @@ class TranscribeItem(BaseModel):
     url: str
     duration: int | None = None
     channel: str | None = None
+    thumbnail: str | None = None
 
 
 class TranscribeRequest(BaseModel):
@@ -99,6 +100,7 @@ def transcribe(req: TranscribeRequest) -> dict:
             url=i.url,
             duration=i.duration,
             channel=i.channel,
+            thumbnail=i.thumbnail,
         )
         for i in req.items
     ]

@@ -41,6 +41,12 @@ DB_PATH = DATA_DIR / "yt2md.sqlite3"
 CHUNK_SECONDS = int(_get("CHUNK_SECONDS", "600"))  # 10 minutes
 AUDIO_BITRATE = _get("AUDIO_BITRATE", "64k")
 
+# Optional path to a Netscape-format cookies.txt for yt-dlp. Needed when the
+# host's IP gets bot-blocked by YouTube (common on cloud providers). On
+# Render, add the file as a Secret File and point this at it, e.g.
+# COOKIES_FILE=/etc/secrets/cookies.txt
+COOKIES_FILE = _get("COOKIES_FILE")
+
 # --- Cleanup tuning --------------------------------------------------------
 # Raw transcripts are windowed before going to Claude so each response stays
 # comfortably inside the model's output-token budget.

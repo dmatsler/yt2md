@@ -91,6 +91,17 @@
     padding: 11px 4px; border-bottom: 1px solid var(--line);
   }
   ul.list li:last-child { border-bottom: 0; }
+  .thumb {
+    width: 84px; height: 47px; flex: none; border-radius: 6px;
+    object-fit: cover; background: var(--green-tint); border: 1px solid var(--line);
+  }
+  .thumb-ph {
+    width: 84px; height: 47px; flex: none; border-radius: 6px;
+    background: var(--green-tint); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green-600); font-size: 18px;
+  }
+  @media (max-width: 560px) { .thumb, .thumb-ph { width: 64px; height: 36px; font-size: 14px; } }
   .vtitle { flex: 1 1 auto; min-width: 0; }
   .vtitle .name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .vtitle .meta { font-size: 13px; color: var(--muted); }
@@ -252,6 +263,14 @@ async function resolve() {
   }
 }
 
+function thumbHtml(src) {
+  // Placeholder (music glyph) for uploads or missing art; onerror covers
+  // the rare video whose thumbnail 404s.
+  if (!src) return `<div class="thumb-ph" aria-hidden="true">&#9835;</div>`;
+  return `<img class="thumb" src="${escapeHtml(src)}" alt="" loading="lazy"
+    onerror="this.outerHTML='<div class=&quot;thumb-ph&quot;>&#9835;</div>'" />`;
+}
+
 function renderResults(d) {
   $("sourceTitle").textContent = d.source_title;
   const n = d.entries.length;
@@ -265,6 +284,7 @@ function renderResults(d) {
     const done = e.already_done;
     li.innerHTML = `
       <input type="checkbox" class="pick" data-i="${i}" ${done ? "disabled" : "checked"} />
+      ${thumbHtml(e.thumbnail)}
       <div class="vtitle">
         <span class="name">${escapeHtml(e.title)}</span>
         <span class="meta">${fmtDur(e.duration)}${e.channel ? " · " + escapeHtml(e.channel) : ""}</span>
@@ -432,6 +452,7 @@ async function loadLibrary() {
   d.transcripts.forEach(t => {
     const li = document.createElement("li");
     li.innerHTML = `
+      ${thumbHtml(t.thumbnail)}
       <div class="vtitle"><span class="name">${escapeHtml(t.title)}</span>
         <span class="meta">${fmtDur(t.duration)}${t.channel ? " · " + escapeHtml(t.channel) : ""}
           · ${t.created_at ? t.created_at.slice(0,10) : ""}</span></div>

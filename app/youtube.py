@@ -115,9 +115,14 @@ def resolve(url: str) -> ResolveResult:
     """Return the video(s) behind a URL.
 
     Uses flat extraction so playlists come back fast (no per-video network
-    round trips). Works for a single video URL too.
+    round trips). Works for a single video URL too. We only need metadata
+    here, so format-availability errors (PO-token-gated formats) are ignored.
     """
-    opts = _ydl_opts(skip_download=True, extract_flat="in_playlist")
+    opts = _ydl_opts(
+        skip_download=True,
+        extract_flat="in_playlist",
+        ignore_no_formats_error=True,
+    )
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
@@ -163,7 +168,7 @@ def resolve(url: str) -> ResolveResult:
 
 def fetch_metadata(video_url: str) -> VideoEntry:
     """Full (non-flat) metadata for a single video, used at transcribe time."""
-    opts = _ydl_opts(skip_download=True)
+    opts = _ydl_opts(skip_download=True, ignore_no_formats_error=True)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(video_url, download=False)
     vid = info.get("id")
@@ -235,10 +240,24 @@ def download_chunks(video_url: str, workdir: Path) -> list[Path]:
     workdir.mkdir(parents=True, exist_ok=True)
     raw_template = str(workdir / "audio.%(ext)s")
 
-    ydl_opts = _ydl_opts(format="bestaudio/best", outtmpl=raw_template)
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(video_url, download=True)
-        raw_path = Path(ydl.prepare_filename(info))
+    def _attempt(extra: dict) -> Path:
+        ydl_opts = _ydl_opts(
+            format="bestaudio/best", outtmpl=raw_template, **extra
+        )
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=True)
+            return Path(ydl.prepare_filename(info))
+
+    try:
+        raw_path = _attempt({})
+    except yt_dlp.utils.DownloadError as exc:
+        if "Requested format is not available" not in str(exc):
+            raise
+        # Default client's formats are PO-token-gated; the TV client usually
+        # still serves audio streams without one. Retry once with it.
+        raw_path = _attempt(
+            {"extractor_args": {"youtube": {"player_client": ["tv"]}}}
+        )
 
     if not raw_path.exists():
         # yt-dlp may have chosen a different extension; grab whatever landed.

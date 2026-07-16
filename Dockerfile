@@ -5,6 +5,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Deno: yt-dlp uses it (auto-detected on PATH) to solve YouTube's JS
+# challenges. Without a JS runtime, format URLs stay locked and downloads
+# fail with "Requested format is not available".
+COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
+
 WORKDIR /app
 
 COPY requirements.txt .

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>yt2md — YouTube to clean Markdown</title>
+<style>
+  :root {
+    --bg: #eef3f1;
+    --surface: #ffffff;
+    --ink: #15241f;
+    --muted: #63756e;
+    --line: #d7e3de;
+    --green: #0f6f5c;
+    --green-600: #0b5445;
+    --green-tint: #e3f0ec;
+    --amber: #b07a2b;
+    --danger: #a23b28;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(21,36,31,.06), 0 8px 24px rgba(21,36,31,.06);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  a { color: var(--green-600); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  header.masthead { margin-bottom: 28px; }
+  .brand {
+    font-size: 30px; font-weight: 700; letter-spacing: -.02em;
+    display: inline-flex; align-items: baseline; gap: 2px;
+  }
+  .brand .arrow { color: var(--green); font-weight: 800; }
+  .tagline { color: var(--muted); margin-top: 4px; font-size: 15px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type=text] {
+    flex: 1 1 320px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fbfdfc;
+    color: var(--ink);
+  }
+  input[type=text]:focus { outline: 2px solid var(--green); border-color: var(--green); }
+
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    border-radius: 8px; border: 1px solid transparent;
+    padding: 12px 18px; transition: background .12s ease, opacity .12s ease;
+  }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-600); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--green-600); border-color: var(--line); }
+  .btn-ghost:hover { background: var(--green-tint); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-danger { color: var(--danger); border-color: var(--line); background: transparent; }
+  .btn-danger:hover { background: #f6e9e6; }
+
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+
+  .source-head { display: flex; justify-content: space-between; align-items: baseline;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .source-head h2 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .count { color: var(--muted); font-size: 14px; }
+
+  .toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 0 14px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+  .toolbar label { font-size: 14px; color: var(--muted); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 4px; border-bottom: 1px solid var(--line);
+  }
+  ul.list li:last-child { border-bottom: 0; }
+  .vtitle { flex: 1 1 auto; min-width: 0; }
+  .vtitle .name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vtitle .meta { font-size: 13px; color: var(--muted); }
+  input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--green); }
+
+  .badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge-done { background: var(--green-tint); color: var(--green-600); }
+  .badge-new  { background: #eef1f0; color: var(--muted); }
+  .badge-run  { background: #fbf1de; color: var(--amber); }
+  .badge-err  { background: #f6e4e0; color: var(--danger); }
+
+  .row-actions { display: flex; gap: 6px; align-items: center; }
+
+  .action-bar { display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot.queued { background: #c7d2cd; }
+  .dot.active { background: var(--amber); animation: pulse 1s infinite; }
+  .dot.done { background: var(--green); }
+  .dot.skipped { background: var(--green); opacity: .5; }
+  .dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 6px 0; }
+  .banner { padding: 12px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
+  .banner-warn { background: #fbf1de; color: #6b4e15; border: 1px solid #ecd9ad; }
+  .banner-err { background: #f6e4e0; color: var(--danger); border: 1px solid #e6c3ba; }
+
+  /* modal */
+  .modal-back { position: fixed; inset: 0; background: rgba(21,36,31,.45);
+    display: none; align-items: center; justify-content: center; padding: 20px; z-index: 20; }
+  .modal-back.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); max-width: 760px;
+    width: 100%; max-height: 84vh; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .modal-head h3 { margin: 0; font-size: 16px; }
+  .modal pre { margin: 0; padding: 18px; overflow: auto; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap; word-break: break-word; }
+  .icon-btn { background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+
+  @media (prefers-reduced-motion: reduce) { .dot.active { animation: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">yt2md<span class="arrow">&rarr;</span></div>
+    <div class="tagline">Paste a YouTube video or playlist. Get clean, Whisper-grade Markdown transcripts.</div>
+  </header>
+
+  <div id="keyWarn" class="banner banner-warn" style="display:none;"></div>
+
+  <div class="card">
+    <div class="input-row">
+      <input id="url" type="text" placeholder="https://www.youtube.com/watch?v=…  or a playlist URL" />
+      <button id="resolveBtn" class="btn-primary">Resolve</button>
+    </div>
+    <div id="resolveMsg" class="hint" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Or upload audio directly</p>
+    <p class="hint" style="margin:0 0 12px;">Fallback for when YouTube blocks server downloads, or for any other audio.
+      Any length is fine — files are chunked automatically. Accepts mp3, m4a, wav, webm, mp4 and more.</p>
+    <div class="input-row">
+      <input type="file" id="audioFile" accept=".mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.webm,.mp4,.mkv,.mov"
+             style="flex:1 1 220px; font-size:14px; padding:9px; border:1px dashed var(--line); border-radius:8px; background:#fbfdfc;" />
+      <input type="text" id="audioTitle" placeholder="Title (optional — defaults to filename)" style="flex:1 1 220px;" />
+      <button id="uploadBtn" class="btn-primary">Upload &amp; transcribe</button>
+    </div>
+    <div id="uploadMsg" class="hint" style="margin-top:10px;"></div>
+  </div>
+
+  <div id="resultsCard" class="card" style="display:none;">
+    <div class="source-head">
+      <h2 id="sourceTitle"></h2>
+      <span id="sourceCount" class="count"></span>
+    </div>
+    <div class="toolbar">
+      <label><input type="checkbox" id="selectAll" /> Select all new</label>
+      <label><input type="checkbox" id="forceToggle" /> Allow re-transcribing done videos</label>
+    </div>
+    <ul id="videoList" class="list"></ul>
+    <div class="action-bar">
+      <span id="selectionHint" class="hint"></span>
+      <button id="transcribeBtn" class="btn-primary" disabled>Transcribe selected</button>
+    </div>
+  </div>
+
+  <div id="progressCard" class="card" style="display:none;">
+    <p class="section-title">Progress</p>
+    <ul id="progressList" class="list"></ul>
+  </div>
+
+  <div class="card">
+    <p class="section-title">Library</p>
+    <ul id="libraryList" class="list"></ul>
+    <p id="libraryEmpty" class="empty">Nothing transcribed yet.</p>
+  </div>
+</div>
+
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">Transcript</h3>
+      <button class="icon-btn" id="modalClose" aria-label="Close">&times;</button>
+    </div>
+    <pre id="modalBody"></pre>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let currentEntries = [];
+
+function fmtDur(sec) {
+  if (!sec) return "";
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
+           : `${m}:${String(s).padStart(2,"0")}`;
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch("/api/health");
+    const d = await r.json();
+    if (d.missing_keys && d.missing_keys.length) {
+      const w = $("keyWarn");
+      w.textContent = "Server is missing API keys: " + d.missing_keys.join(", ")
+        + ". Set them in the environment before transcribing.";
+      w.style.display = "block";
+    }
+  } catch (_) {}
+}
+
+async function resolve() {
+  const url = $("url").value.trim();
+  if (!url) return;
+  $("resolveBtn").disabled = true;
+  $("resolveMsg").textContent = "Reading…";
+  try {
+    const r = await fetch("/api/resolve", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({url}),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Failed to resolve URL.");
+    currentEntries = d.entries;
+    renderResults(d);
+    $("resolveMsg").textContent = "";
+  } catch (e) {
+    $("resolveMsg").innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+  } finally {
+    $("resolveBtn").disabled = false;
+  }
+}
+
+function renderResults(d) {
+  $("sourceTitle").textContent = d.source_title;
+  const n = d.entries.length;
+  const newCount = d.entries.filter(e => !e.already_done).length;
+  $("sourceCount").textContent = `${n} video${n===1?"":"s"} · ${newCount} new`;
+  $("resultsCard").style.display = "block";
+  const list = $("videoList");
+  list.innerHTML = "";
+  d.entries.forEach((e, i) => {
+    const li = document.createElement("li");
+    const done = e.already_done;
+    li.innerHTML = `
+      <input type="checkbox" class="pick" data-i="${i}" ${done ? "disabled" : "checked"} />
+      <div class="vtitle">
+        <span class="name">${escapeHtml(e.title)}</span>
+        <span class="meta">${fmtDur(e.duration)}${e.channel ? " · " + escapeHtml(e.channel) : ""}</span>
+      </div>
+      <div class="row-actions">
+        ${done ? `<span class="badge badge-done">✓ transcribed</span>
+                   <button class="btn-ghost btn-sm" data-view="${e.video_id}">View</button>
+                   <a class="btn-ghost btn-sm" href="/api/download/${e.video_id}">.md</a>`
+               : `<span class="badge badge-new">new</span>`}
+      </div>`;
+    list.appendChild(li);
+  });
+  bindPicks();
+  updateSelectionHint();
+}
+
+function bindPicks() {
+  document.querySelectorAll(".pick").forEach(cb =>
+    cb.addEventListener("change", updateSelectionHint));
+  document.querySelectorAll("[data-view]").forEach(b =>
+    b.addEventListener("click", () => viewTranscript(b.dataset.view)));
+}
+
+function selectedIndexes() {
+  return [...document.querySelectorAll(".pick")]
+    .filter(cb => cb.checked && !cb.disabled)
+    .map(cb => Number(cb.dataset.i));
+}
+
+function updateSelectionHint() {
+  const n = selectedIndexes().length;
+  $("selectionHint").textContent = n ? `${n} selected` : "Select videos to transcribe.";
+  $("transcribeBtn").disabled = n === 0;
+}
+
+$("selectAll").addEventListener("change", (e) => {
+  document.querySelectorAll(".pick").forEach(cb => {
+    if (!cb.disabled) cb.checked = e.target.checked;
+  });
+  updateSelectionHint();
+});
+
+$("forceToggle").addEventListener("change", (e) => {
+  const force = e.target.checked;
+  document.querySelectorAll(".pick").forEach(cb => {
+    const entry = currentEntries[Number(cb.dataset.i)];
+    if (entry && entry.already_done) {
+      cb.disabled = !force;
+      if (!force) cb.checked = false;
+    }
+  });
+  updateSelectionHint();
+});
+
+async function startTranscribe() {
+  const idx = selectedIndexes();
+  if (!idx.length) return;
+  const items = idx.map(i => currentEntries[i]);
+  const force = $("forceToggle").checked;
+  $("transcribeBtn").disabled = true;
+  try {
+    const r = await fetch("/api/transcribe", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({items, force}),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Could not start.");
+    pollJob(d.job_id);
+  } catch (e) {
+    alert(e.message);
+    $("transcribeBtn").disabled = false;
+  }
+}
+
+const STAGE_LABEL = {
+  queued: "Queued", downloading: "Downloading audio", chunking: "Preparing audio",
+  transcribing: "Transcribing", cleaning: "Cleaning up",
+  saving: "Saving", done: "Done", skipped: "Already done", error: "Error",
+};
+
+async function uploadAudio() {
+  const input = $("audioFile");
+  if (!input.files || !input.files.length) {
+    $("uploadMsg").textContent = "Choose an audio file first.";
+    return;
+  }
+  const fd = new FormData();
+  fd.append("file", input.files[0]);
+  fd.append("title", $("audioTitle").value.trim());
+  fd.append("force", "false");
+  $("uploadBtn").disabled = true;
+  $("uploadMsg").textContent = "Uploading… (large files take a moment)";
+  try {
+    const r = await fetch("/api/upload", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "Upload failed.");
+    if (d.already_done) {
+      $("uploadMsg").textContent = "That exact file is already in your library — see below.";
+    } else {
+      $("uploadMsg").textContent = "";
+      input.value = ""; $("audioTitle").value = "";
+      pollJob(d.job_id);
+    }
+  } catch (e) {
+    $("uploadMsg").innerHTML = `<span style="color:var(--danger)">${e.message}</span>`;
+  } finally {
+    $("uploadBtn").disabled = false;
+  }
+}
+function dotClass(status) {
+  if (status === "done") return "done";
+  if (status === "skipped") return "skipped";
+  if (status === "error") return "error";
+  if (status === "queued") return "queued";
+  return "active";
+}
+
+async function pollJob(jobId) {
+  $("progressCard").style.display = "block";
+  const list = $("progressList");
+  const tick = async () => {
+    const r = await fetch(`/api/jobs/${jobId}`);
+    const d = await r.json();
+    list.innerHTML = "";
+    d.items.forEach(it => {
+      const li = document.createElement("li");
+      const label = STAGE_LABEL[it.status] || it.status;
+      const detail = it.detail ? ` (${it.detail})` : "";
+      li.innerHTML = `
+        <span class="dot ${dotClass(it.status)}"></span>
+        <div class="vtitle"><span class="name">${escapeHtml(it.title)}</span>
+          <span class="meta">${label}${detail}${it.error ? " — " + escapeHtml(it.error) : ""}</span></div>`;
+      list.appendChild(li);
+    });
+    if (d.state === "finished") {
+      loadLibrary();
+      // refresh the resolve view so freshly-done items flip to "transcribed"
+      if ($("url").value.trim()) refreshResolveStatuses();
+      $("transcribeBtn").disabled = selectedIndexes().length === 0;
+      return;
+    }
+    setTimeout(tick, 1500);
+  };
+  tick();
+}
+
+async function refreshResolveStatuses() {
+  try {
+    const r = await fetch("/api/resolve", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({url: $("url").value.trim()}),
+    });
+    const d = await r.json();
+    if (r.ok) { currentEntries = d.entries; renderResults(d); }
+  } catch (_) {}
+}
+
+async function loadLibrary() {
+  const r = await fetch("/api/library");
+  const d = await r.json();
+  const list = $("libraryList");
+  list.innerHTML = "";
+  if (!d.transcripts.length) { $("libraryEmpty").style.display = "block"; return; }
+  $("libraryEmpty").style.display = "none";
+  d.transcripts.forEach(t => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      <div class="vtitle"><span class="name">${escapeHtml(t.title)}</span>
+        <span class="meta">${fmtDur(t.duration)}${t.channel ? " · " + escapeHtml(t.channel) : ""}
+          · ${t.created_at ? t.created_at.slice(0,10) : ""}</span></div>
+      <div class="row-actions">
+        <button class="btn-ghost btn-sm" data-view="${t.video_id}">View</button>
+        <a class="btn-ghost btn-sm" href="/api/download/${t.video_id}">.md</a>
+        <button class="btn-danger btn-sm" data-del="${t.video_id}">Delete</button>
+      </div>`;
+    list.appendChild(li);
+  });
+  document.querySelectorAll("[data-view]").forEach(b =>
+    b.addEventListener("click", () => viewTranscript(b.dataset.view)));
+  document.querySelectorAll("[data-del]").forEach(b =>
+    b.addEventListener("click", () => delTranscript(b.dataset.del)));
+}
+
+async function viewTranscript(id) {
+  const r = await fetch(`/api/transcript/${id}`);
+  const text = await r.text();
+  $("modalBody").textContent = text;
+  $("modalBack").classList.add("open");
+}
+async function delTranscript(id) {
+  if (!confirm("Delete this transcript? You'll be able to re-transcribe it later.")) return;
+  await fetch(`/api/transcript/${id}`, {method: "DELETE"});
+  loadLibrary();
+  if ($("url").value.trim()) refreshResolveStatuses();
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+$("resolveBtn").addEventListener("click", resolve);
+$("url").addEventListener("keydown", e => { if (e.key === "Enter") resolve(); });
+$("transcribeBtn").addEventListener("click", startTranscribe);
+$("uploadBtn").addEventListener("click", uploadAudio);
+$("modalClose").addEventListener("click", () => $("modalBack").classList.remove("open"));
+$("modalBack").addEventListener("click", e => { if (e.target === $("modalBack")) $("modalBack").classList.remove("open"); });
+
+checkHealth();
+loadLibrary();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+"""Everything that talks to YouTube via yt-dlp, plus ffmpeg audio prep.
+
+Two jobs:
+  1. resolve(url)        -> list the video(s) behind a URL without downloading
+  2. download_chunks(...) -> pull one video's audio and cut it into small,
+                             Whisper-safe mp3 chunks
+"""
+from __future__ import annotations
+
+import subprocess
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+import yt_dlp
+
+from . import config
+
+
+@dataclass
+class VideoEntry:
+    video_id: str
+    title: str
+    url: str
+    duration: Optional[int] = None
+    channel: Optional[str] = None
+    # When set, this entry came from a direct audio upload: skip yt-dlp and
+    # chunk this file instead. The pipeline deletes it after processing.
+    local_path: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        return {
+            "video_id": self.video_id,
+            "title": self.title,
+            "url": self.url,
+            "duration": self.duration,
+            "channel": self.channel,
+        }
+
+
+@dataclass
+class ResolveResult:
+    source_title: str
+    is_playlist: bool
+    entries: list[VideoEntry]
+
+
+def _watch_url(video_id: str) -> str:
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+def resolve(url: str) -> ResolveResult:
+    """Return the video(s) behind a URL.
+
+    Uses flat extraction so playlists come back fast (no per-video network
+    round trips). Works for a single video URL too.
+    """
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": "in_playlist",
+    }
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+
+    # Playlist / channel: has an "entries" list.
+    if info.get("_type") == "playlist" or info.get("entries") is not None:
+        entries: list[VideoEntry] = []
+        for item in info.get("entries") or []:
+            if not item:
+                continue
+            vid = item.get("id")
+            if not vid:
+                continue
+            entries.append(
+                VideoEntry(
+                    video_id=vid,
+                    title=item.get("title") or vid,
+                    url=item.get("url") or _watch_url(vid),
+                    duration=item.get("duration"),
+                    channel=item.get("channel") or item.get("uploader"),
+                )
+            )
+        return ResolveResult(
+            source_title=info.get("title") or "Playlist",
+            is_playlist=True,
+            entries=entries,
+        )
+
+    # Single video.
+    vid = info.get("id")
+    entry = VideoEntry(
+        video_id=vid,
+        title=info.get("title") or vid,
+        url=info.get("webpage_url") or _watch_url(vid),
+        duration=info.get("duration"),
+        channel=info.get("channel") or info.get("uploader"),
+    )
+    return ResolveResult(
+        source_title=entry.title, is_playlist=False, entries=[entry]
+    )
+
+
+def fetch_metadata(video_url: str) -> VideoEntry:
+    """Full (non-flat) metadata for a single video, used at transcribe time."""
+    opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(video_url, download=False)
+    vid = info.get("id")
+    return VideoEntry(
+        video_id=vid,
+        title=info.get("title") or vid,
+        url=info.get("webpage_url") or _watch_url(vid),
+        duration=info.get("duration"),
+        channel=info.get("channel") or info.get("uploader"),
+    )
+
+
+def _run(cmd: list[str]) -> None:
+    proc = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"Command failed ({' '.join(cmd[:2])}...): {proc.stderr.strip()[:500]}"
+        )
+
+
+def _segment_to_chunks(src: Path, workdir: Path) -> list[Path]:
+    """Normalise any audio file to mono 16 kHz mp3 and cut into time chunks.
+
+    This is what keeps every Whisper upload under the 25 MB cap regardless of
+    how long the source is: at 64 kbps mono, a 10-minute chunk is ~4.8 MB.
+    """
+    chunk_pattern = str(workdir / "chunk_%03d.mp3")
+    _run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(src),
+            "-vn",
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-b:a",
+            config.AUDIO_BITRATE,
+            "-f",
+            "segment",
+            "-segment_time",
+            str(config.CHUNK_SECONDS),
+            chunk_pattern,
+        ]
+    )
+    chunks = sorted(workdir.glob("chunk_*.mp3"))
+    if not chunks:
+        raise RuntimeError("ffmpeg produced no audio chunks.")
+    return chunks
+
+
+def chunk_local_audio(src: Path, workdir: Path) -> list[Path]:
+    """Chunk a user-uploaded audio (or video) file for transcription."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    if not src.exists():
+        raise RuntimeError(f"Uploaded file not found: {src}")
+    return _segment_to_chunks(src, workdir)
+
+
+def download_chunks(video_url: str, workdir: Path) -> list[Path]:
+    """Download bestaudio and return an ordered list of mp3 chunk paths."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    raw_template = str(workdir / "audio.%(ext)s")
+
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "format": "bestaudio/best",
+        "outtmpl": raw_template,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(video_url, download=True)
+        raw_path = Path(ydl.prepare_filename(info))
+
+    if not raw_path.exists():
+        # yt-dlp may have chosen a different extension; grab whatever landed.
+        candidates = [p for p in workdir.glob("audio.*")]
+        if not candidates:
+            raise RuntimeError("Audio download produced no file.")
+        raw_path = candidates[0]
+
+    return _segment_to_chunks(raw_path, workdir)
+
+
+def make_workdir() -> Path:
+    return Path(tempfile.mkdtemp(prefix="yt2md_"))

@@ -82,12 +82,14 @@
   .btn-danger { color: var(--danger); border-color: var(--line); background: transparent; }
   .btn-danger:hover { background: #f6e9e6; }
 
-  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--muted); margin: 0 0 12px; font-weight: 700; }
+  .section-title { font-size: 15px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--green-600); margin: 0 0 12px; font-weight: 700; }
 
   .source-head { display: flex; justify-content: space-between; align-items: baseline;
     gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
-  .source-head h2 { font-size: 17px; margin: 0; letter-spacing: -.01em; }
+  .source-name { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .progress-scroll { max-height: 300px; overflow-y: auto; }
   .count { color: var(--muted); font-size: 14px; }
 
   .toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -204,7 +206,6 @@
 <div class="wrap">
   <header class="masthead">
     <div class="brand">yt2md<span class="arrow">&rarr;</span></div>
-    <div class="tagline">Paste a YouTube video or playlist. Get clean, Whisper-grade Markdown transcripts.</div>
   </header>
 
   <div id="keyWarn" class="banner banner-warn" style="display:none;"></div>
@@ -214,6 +215,7 @@
     <div class="col">
       <div class="card">
         <p class="section-title">YouTube link</p>
+        <p class="hint" style="margin:0 0 12px;">Paste a YouTube video or playlist. Get clean, Whisper-grade Markdown transcripts.</p>
         <div class="input-row">
           <input id="url" type="text" placeholder="Video or playlist URL" />
           <button id="resolveBtn" class="btn-primary">Resolve</button>
@@ -242,8 +244,9 @@
       </div>
 
       <div id="resultsCard" class="card" style="display:none;">
+        <p class="section-title">Videos</p>
         <div class="source-head">
-          <h2 id="sourceTitle"></h2>
+          <p id="sourceTitle" class="source-name"></p>
           <span id="sourceCount" class="count"></span>
         </div>
         <div class="toolbar">
@@ -259,8 +262,11 @@
       </div>
 
       <div id="progressCard" class="card" style="display:none;">
-        <p class="section-title">Progress</p>
-        <ul id="progressList" class="list scroll-list"></ul>
+        <div class="source-head">
+          <p class="section-title" style="margin:0;">Progress</p>
+          <span id="progressCount" class="count"></span>
+        </div>
+        <ul id="progressList" class="list progress-scroll" style="margin-top:8px;"></ul>
       </div>
     </div>
   </div>
@@ -506,6 +512,8 @@ async function pollJob(jobId) {
     const r = await fetch(`/api/jobs/${jobId}`);
     const d = await r.json();
     list.innerHTML = "";
+    let activeLi = null;
+    let finished = 0;
     d.items.forEach(it => {
       const li = document.createElement("li");
       const label = STAGE_LABEL[it.status] || it.status;
@@ -515,7 +523,12 @@ async function pollJob(jobId) {
         <div class="vtitle"><span class="name">${escapeHtml(it.title)}</span>
           <span class="meta">${label}${detail}${it.error ? " — " + escapeHtml(it.error) : ""}</span></div>`;
       list.appendChild(li);
+      if (["done","skipped","error"].includes(it.status)) finished++;
+      else if (!activeLi && it.status !== "queued") activeLi = li;
     });
+    $("progressCount").textContent = `${finished}/${d.items.length} done`;
+    // keep the in-flight video visible inside the capped list
+    if (activeLi) list.scrollTop = Math.max(0, activeLi.offsetTop - list.offsetTop - 8);
     if (d.state === "finished") {
       loadLibrary();
       if ($("url").value.trim()) refreshResolveStatuses();

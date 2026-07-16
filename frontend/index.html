@@ -89,7 +89,7 @@
     gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
   .source-name { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -.01em;
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .progress-scroll { max-height: 300px; overflow-y: auto; }
+  .progress-scroll { max-height: 200px; overflow-y: auto; }
   .count { color: var(--muted); font-size: 14px; }
 
   .toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -113,7 +113,7 @@
     color: var(--green-600); font-size: 18px;
   }
   /* Video list inside results can grow: cap + scroll */
-  .scroll-list { max-height: 420px; overflow-y: auto; }
+  .scroll-list { max-height: 345px; overflow-y: auto; }
 
   .vtitle { flex: 1 1 auto; min-width: 0; }
   .vtitle .name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -169,8 +169,9 @@
   }
   .lib-pick {
     position: absolute; top: 8px; left: 8px; z-index: 2;
-    width: 18px; height: 18px; accent-color: var(--green);
-    background: #fff; border-radius: 4px; box-shadow: 0 0 0 3px rgba(255,255,255,.85);
+    width: 20px; height: 20px; accent-color: var(--green);
+    background: #fff; border-radius: 4px;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.95), 0 1px 4px rgba(21,36,31,.35);
   }
   .bulk-bar { display: none; align-items: center; gap: 12px; flex-wrap: wrap;
     margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -275,8 +276,11 @@
   <div class="card library">
     <div class="library-head">
       <p class="section-title">Library</p>
-      <input id="libSearch" class="lib-search" type="text" placeholder="Search titles and channels…" />
+      <input id="libSearch" class="lib-search" type="text" placeholder="Search titles and channels…"
+        aria-label="Search library by title or channel" />
     </div>
+    <p class="hint" style="margin:-6px 0 14px;">Tip: tick the checkbox in the corner of each card to select multiple
+      transcripts, then download them together as a single .zip.</p>
     <div id="libraryGrid" class="lib-grid"></div>
     <p id="libraryEmpty" class="empty">Nothing transcribed yet.</p>
     <p id="libraryNoMatch" class="empty" style="display:none;">No matches for that search.</p>
@@ -590,7 +594,8 @@ function renderLibrary() {
     card.className = "lib-card";
     card.innerHTML = `
       <input type="checkbox" class="lib-pick" data-id="${t.video_id}"
-        ${libSelected.has(t.video_id) ? "checked" : ""} title="Select for bulk download" />
+        ${libSelected.has(t.video_id) ? "checked" : ""}
+        aria-label="Select ${escapeHtml(t.title)} for bulk download" title="Select for bulk download" />
       ${libThumbHtml(t.thumbnail)}
       <div class="lib-body">
         <div class="lib-title">${escapeHtml(t.title)}</div>

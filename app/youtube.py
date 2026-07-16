@@ -66,14 +66,23 @@ def _thumb_url(video_id: str, given: Optional[str] = None) -> Optional[str]:
 
 
 def _ydl_opts(**extra) -> dict:
-    """Base yt-dlp options, with the cookies file injected when configured.
+    """Base yt-dlp options, with anti-bot-block measures injected when
+    configured.
 
-    Cookies let yt-dlp act as a logged-in user, which is the standard fix for
-    'Sign in to confirm you're not a bot' blocks on datacenter IPs.
+    Cookies let yt-dlp act as a logged-in user; alternate player clients
+    (e.g. the TV client) can bypass the datacenter-IP bot check without any
+    account at all. Both are the standard fixes for YouTube's
+    'Sign in to confirm you're not a bot' error on cloud hosts.
     """
     opts = {"quiet": True, "no_warnings": True}
     if config.COOKIES_FILE and Path(config.COOKIES_FILE).exists():
         opts["cookiefile"] = config.COOKIES_FILE
+    if config.YTDLP_PLAYER_CLIENTS:
+        clients = [
+            c.strip() for c in config.YTDLP_PLAYER_CLIENTS.split(",") if c.strip()
+        ]
+        if clients:
+            opts["extractor_args"] = {"youtube": {"player_client": clients}}
     opts.update(extra)
     return opts
 

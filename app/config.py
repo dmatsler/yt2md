@@ -47,6 +47,11 @@ AUDIO_BITRATE = _get("AUDIO_BITRATE", "64k")
 # COOKIES_FILE=/etc/secrets/cookies.txt
 COOKIES_FILE = _get("COOKIES_FILE")
 
+# Optional comma-separated list of YouTube player clients for yt-dlp to
+# impersonate (e.g. "tv,web"). Some clients bypass the datacenter-IP bot
+# check without needing cookies at all. Leave unset for yt-dlp's default.
+YTDLP_PLAYER_CLIENTS = _get("YTDLP_PLAYER_CLIENTS")
+
 # --- Cleanup tuning --------------------------------------------------------
 # Raw transcripts are windowed before going to Claude so each response stays
 # comfortably inside the model's output-token budget.

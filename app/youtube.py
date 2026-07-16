@@ -7,6 +7,7 @@ Two jobs:
 """
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -52,6 +53,28 @@ def _watch_url(video_id: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
+# yt-dlp writes rotated session cookies back to the cookie file, but secret
+# mounts (e.g. Render's /etc/secrets) are read-only. So we copy the file to a
+# writable temp path on first use and hand yt-dlp the copy. Rotations then
+# persist for the life of the process, and the original stays pristine.
+_cookie_copy: Optional[Path] = None
+
+
+def _cookie_path() -> Optional[str]:
+    global _cookie_copy
+    if not config.COOKIES_FILE:
+        return None
+    src = Path(config.COOKIES_FILE)
+    if not src.exists():
+        return None
+    if _cookie_copy is not None and _cookie_copy.exists():
+        return str(_cookie_copy)
+    dst = Path(tempfile.gettempdir()) / "yt2md_cookies.txt"
+    shutil.copyfile(src, dst)
+    _cookie_copy = dst
+    return str(dst)
+
+
 def _thumb_url(video_id: str, given: Optional[str] = None) -> Optional[str]:
     """Prefer yt-dlp's thumbnail, else derive the standard YouTube URL.
 
@@ -75,8 +98,9 @@ def _ydl_opts(**extra) -> dict:
     'Sign in to confirm you're not a bot' error on cloud hosts.
     """
     opts = {"quiet": True, "no_warnings": True}
-    if config.COOKIES_FILE and Path(config.COOKIES_FILE).exists():
-        opts["cookiefile"] = config.COOKIES_FILE
+    cookie_file = _cookie_path()
+    if cookie_file:
+        opts["cookiefile"] = cookie_file
     if config.YTDLP_PLAYER_CLIENTS:
         clients = [
             c.strip() for c in config.YTDLP_PLAYER_CLIENTS.split(",") if c.strip()

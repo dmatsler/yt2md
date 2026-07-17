@@ -9,7 +9,7 @@ heavy runs on your own machine.
 > get punctuated, paragraphed, chaptered `.md` files. Already-transcribed videos
 > are remembered and skipped automatically.
 
-<!-- screenshot: main two-column workspace with a resolved playlist -->
+![yt2md workspace — resolved playlist with thumbnails](docs/workspace.png)
 
 ## Features
 
@@ -35,7 +35,7 @@ heavy runs on your own machine.
   done) with a running done-counter; the list auto-scrolls to the video
   currently in flight.
 
-<!-- screenshot: library grid with search + bulk download bar -->
+![Library grid with search and bulk zip download](docs/library.png)
 
 ## How it works
 

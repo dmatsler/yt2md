@@ -51,6 +51,7 @@ class TranscribeItem(BaseModel):
 class TranscribeRequest(BaseModel):
     items: list[TranscribeItem]
     force: bool = False
+    model: str | None = None
 
 
 # --- Frontend -------------------------------------------------------------
@@ -104,7 +105,7 @@ def transcribe(req: TranscribeRequest) -> dict:
         )
         for i in req.items
     ]
-    job = manager.create(entries, force=req.force)
+    job = manager.create(entries, force=req.force, model=req.model)
     return {"job_id": job.id}
 
 
@@ -128,6 +129,7 @@ async def upload(
     file: UploadFile = File(...),
     title: str = Form(""),
     force: bool = Form(False),
+    model: str = Form(""),
 ) -> dict:
     """Direct audio upload — the fallback for when YouTube blocks the
     server's downloads, or for non-YouTube audio. Any length is fine; the
@@ -174,7 +176,7 @@ async def upload(
         url=f"(uploaded file: {file.filename})",
         local_path=str(final_path),
     )
-    job = manager.create([entry], force=force)
+    job = manager.create([entry], force=force, model=model or None)
     return {"job_id": job.id, "already_done": False, "video_id": video_id}
 
 

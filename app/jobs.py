@@ -35,6 +35,7 @@ class Job:
     id: str
     items: list[ItemState]
     force: bool = False
+    model: Optional[str] = None      # Whisper model override for this job
     state: str = "running"           # running|finished
     created_at: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
@@ -63,11 +64,14 @@ class JobManager:
         self._jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def create(self, entries: list[VideoEntry], force: bool) -> Job:
+    def create(
+        self, entries: list[VideoEntry], force: bool, model: Optional[str] = None
+    ) -> Job:
         job = Job(
             id=uuid.uuid4().hex[:12],
             items=[ItemState(e.video_id, e.title) for e in entries],
             force=force,
+            model=model,
         )
         with self._lock:
             self._jobs[job.id] = job
@@ -92,7 +96,9 @@ class JobManager:
                 else:
                     _item.detail = ""
             try:
-                pipeline.process_video(entry, force=job.force, status=status)
+                pipeline.process_video(
+                    entry, force=job.force, status=status, model=job.model
+                )
             except Exception as exc:  # noqa: BLE001 - surface to the UI
                 item.status = "error"
                 item.error = str(exc)[:400]

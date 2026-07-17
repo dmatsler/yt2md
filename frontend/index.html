@@ -67,6 +67,12 @@
     color: var(--ink);
   }
   input[type=text]:focus { outline: 2px solid var(--green); border-color: var(--green); }
+  select.model-select {
+    font: inherit; font-size: 14px; color: var(--ink);
+    padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fbfdfc; cursor: pointer; max-width: 100%;
+  }
+  select.model-select:focus { outline: 2px solid var(--green); border-color: var(--green); }
 
   button {
     font: inherit; font-weight: 600; cursor: pointer;
@@ -232,6 +238,10 @@
           <input type="file" id="audioFile" accept=".mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.webm,.mp4,.mkv,.mov"
                  style="flex:1 1 180px; font-size:14px; padding:9px; border:1px dashed var(--line); border-radius:8px; background:#fbfdfc;" />
           <input type="text" id="audioTitle" placeholder="Title (optional)" />
+          <select id="uploadModelSelect" class="model-select" aria-label="Whisper model for this upload">
+            <option value="whisper-large-v3-turbo">Turbo — fast &amp; cheap (clean audio)</option>
+            <option value="whisper-large-v3">Large-v3 — highest accuracy (noisy audio)</option>
+          </select>
           <button id="uploadBtn" class="btn-primary">Upload &amp; transcribe</button>
         </div>
         <div id="uploadMsg" class="hint" style="margin-top:10px;"></div>
@@ -258,7 +268,13 @@
         <ul id="videoList" class="list scroll-list"></ul>
         <div class="action-bar">
           <span id="selectionHint" class="hint"></span>
-          <button id="transcribeBtn" class="btn-primary" disabled>Transcribe selected</button>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <select id="modelSelect" class="model-select" aria-label="Whisper model for this batch">
+              <option value="whisper-large-v3-turbo">Turbo — fast &amp; cheap (clean audio)</option>
+            <option value="whisper-large-v3">Large-v3 — highest accuracy (noisy audio)</option>
+            </select>
+            <button id="transcribeBtn" class="btn-primary" disabled>Transcribe selected</button>
+          </div>
         </div>
       </div>
 
@@ -454,7 +470,7 @@ async function startTranscribe() {
   try {
     const r = await fetch("/api/transcribe", {
       method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({items, force}),
+      body: JSON.stringify({items, force, model: $("modelSelect").value}),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || "Could not start.");
@@ -475,6 +491,7 @@ async function uploadAudio() {
   fd.append("file", input.files[0]);
   fd.append("title", $("audioTitle").value.trim());
   fd.append("force", "false");
+  fd.append("model", $("uploadModelSelect").value);
   $("uploadBtn").disabled = true;
   $("uploadMsg").textContent = "Uploading… (large files take a moment)";
   try {

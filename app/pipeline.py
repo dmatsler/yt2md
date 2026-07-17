@@ -23,7 +23,10 @@ def _safe_slug(text: str, fallback: str) -> str:
 
 
 def process_video(
-    entry: VideoEntry, force: bool = False, status: StatusFn = _noop
+    entry: VideoEntry,
+    force: bool = False,
+    status: StatusFn = _noop,
+    model: Optional[str] = None,
 ) -> dict:
     """Run the full pipeline for one video. Returns the saved record dict."""
     if not force and db.exists(entry.video_id):
@@ -43,7 +46,9 @@ def process_video(
 
         status("transcribing", 0, len(chunks))
         raw = transcribe.transcribe_chunks(
-            chunks, progress=lambda d, t: status("transcribing", d, t)
+            chunks,
+            progress=lambda d, t: status("transcribing", d, t),
+            model=model,
         )
         if not raw:
             raise RuntimeError("Transcription came back empty.")

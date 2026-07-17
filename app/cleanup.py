@@ -24,8 +24,10 @@ _SYSTEM_PROMPT = (
     "(wrong homophones, garbled names) using context.\n"
     "- Break the text into natural paragraphs.\n"
     "- Where a clearly new topic begins, you may insert a Markdown heading "
-    "in the form '## Short Topic Title'. Use these sparingly (0-2 per "
-    "segment) and only at genuine shifts.\n"
+    "in the form '## Short Topic Title' (always exactly two # characters — "
+    "never a single-# title). Use these sparingly (0-2 per segment) and only "
+    "at genuine shifts. Never begin your output with a heading; always start "
+    "with prose.\n"
     "- Do NOT summarise, add commentary, or invent content. Keep every idea "
     "the speaker actually said.\n"
     "Output only the cleaned Markdown for this segment — no preamble, no "
@@ -85,6 +87,24 @@ def _front_matter(entry: VideoEntry) -> str:
     return "\n".join(lines)
 
 
+def _normalise_headings(cleaned: str, is_first_segment: bool) -> str:
+    """Enforce heading rules regardless of what the model emitted.
+
+    - Any '# ' (h1) line is demoted to '## ' so the document title stays the
+      only h1.
+    - If the first segment opens with a heading, it's almost always a
+      duplicate of the video title — drop that line.
+    """
+    lines = cleaned.splitlines()
+    lines = [re.sub(r"^#(?=\s)", "##", ln) for ln in lines]
+    if is_first_segment:
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        if lines and lines[0].lstrip().startswith("#"):
+            lines.pop(0)
+    return "\n".join(lines).strip()
+
+
 def clean_to_markdown(
     raw_text: str, entry: VideoEntry, progress=None
 ) -> str:
@@ -98,7 +118,8 @@ def clean_to_markdown(
     cleaned_parts: list[str] = []
     total = len(windows)
     for i, window in enumerate(windows, start=1):
-        cleaned_parts.append(_clean_window(client, window))
+        cleaned = _clean_window(client, window)
+        cleaned_parts.append(_normalise_headings(cleaned, is_first_segment=(i == 1)))
         if progress:
             progress(i, total)
 
